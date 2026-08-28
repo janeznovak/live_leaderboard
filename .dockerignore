@@ -1,0 +1,35 @@
+# Version-control and local agent state
+.git/
+.gitignore
+.agents/
+.codex/
+.scratch/
+
+# Dependencies and generated output
+node_modules/
+.nuxt/
+.output/
+coverage/
+playwright-report/
+test-results/
+
+# Secrets and local configuration
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Files not needed to build or run the production image
+docs/
+tests/
+AGENTS.md
+CONTEXT.md
+project_ideal.md
+playwright.config.ts
+docker-compose*.yml
+skills-lock.json
+*.log
+.DS_Store
+Thumbs.db
