@@ -1,5 +1,6 @@
 import { database } from './database'
 import { redis } from './redis'
+import { notifyLeaderboardChanged } from './leaderboard-events'
 import { notifyReviewQueueChanged } from './review-queue-events'
 
 type ModerationStatus = 'approved' | 'declined'
@@ -80,6 +81,7 @@ export async function moderateScoreSubmission(submissionId: string, adminId: str
   if (outcome.status === 'approved' && outcome.updatesLeaderboard) {
     try {
       await redis().zadd(`leaderboard:${outcome.gameId}`, 'GT', outcome.score, outcome.userId)
+      notifyLeaderboardChanged(outcome.gameId)
     } catch (error) {
       console.error('Unable to synchronize approved score to Redis', error)
     }
