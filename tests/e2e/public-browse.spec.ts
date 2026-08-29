@@ -204,7 +204,7 @@ test('public leaderboard views refresh live after approval without receiving mod
   expect(approvalStatus).toBe(200)
 
   await expect(publicPage.getByRole('list', { name: 'Leaderboard' })).toContainText(`1. ${username} — 1600`)
-  await expect.poll(() => publicPage.evaluate(() => (window as typeof window & { leaderboardSseEvents?: string[] }).leaderboardSseEvents ?? [])).toContain('leaderboard')
+  await expect.poll(() => publicPage.evaluate(() => (window as typeof window & { leaderboardSseEvents?: string[] }).leaderboardSseEvents ?? [])).toEqual(expect.arrayContaining(['leaderboard', 'report']))
   await expect(publicPage.locator('main')).not.toContainText('moderated by')
   await expect(publicPage.locator('main')).not.toContainText('approved')
 

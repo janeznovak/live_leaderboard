@@ -1,6 +1,6 @@
 import { createEventStream } from 'h3'
 import { database } from '../../../../utils/database'
-import { subscribeLeaderboardChanges } from '../../../../utils/leaderboard-events'
+import { subscribePublicRankingChanges } from '../../../../utils/public-ranking-events'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   }
   // Event data is deliberately opaque: public clients refresh the public API,
   // rather than receiving approval, moderator, or submission information.
-  const publishChange = () => push({ event: 'changed', data: 'leaderboard' })
+  const publishChange = (resource: 'leaderboard' | 'report') => push({ event: 'changed', data: resource })
   let unsubscribe: (() => void) | undefined
   const keepalive = setInterval(() => push({ event: 'ping', data: 'keepalive' }), 25_000)
   stream.onClosed(() => {
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     clearInterval(keepalive)
     unsubscribe?.()
   })
-  unsubscribe = await subscribeLeaderboardChanges(gameId, publishChange)
+  unsubscribe = await subscribePublicRankingChanges(gameId, publishChange)
   if (streamClosed) unsubscribe()
   else push({ event: 'ready', data: 'connected' })
   return stream.send()

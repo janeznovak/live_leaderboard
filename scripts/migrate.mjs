@@ -66,6 +66,7 @@ await client.query('ALTER TABLE oauth_states ALTER COLUMN browser_nonce_hash SET
 await client.query("CREATE UNIQUE INDEX IF NOT EXISTS score_submissions_one_pending_per_user_game ON score_submissions (game_id, user_id) WHERE status = 'pending'")
 await client.query('CREATE INDEX IF NOT EXISTS score_submissions_user_submitted_at_index ON score_submissions (user_id, submitted_at DESC)')
 await client.query('CREATE INDEX IF NOT EXISTS score_submissions_game_user_submitted_at_index ON score_submissions (game_id, user_id, submitted_at DESC)')
+await client.query("CREATE INDEX IF NOT EXISTS score_submissions_approved_game_submitted_at_index ON score_submissions (game_id, submitted_at, user_id) INCLUDE (score, moderated_at) WHERE status = 'approved'")
 await client.query("CREATE INDEX IF NOT EXISTS score_submissions_pending_review_queue_index ON score_submissions (submitted_at ASC, id ASC) WHERE status = 'pending'")
 await client.query('CREATE INDEX IF NOT EXISTS score_submissions_moderated_by_index ON score_submissions (moderated_by, moderated_at DESC)')
 await client.end()

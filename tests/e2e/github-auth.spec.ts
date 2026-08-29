@@ -64,7 +64,8 @@ test('GitHub sign-in, local linking, identity uniqueness, and public link presen
 
   await page.getByRole('button', { name: 'Log out' }).click()
   await page.goto('/games/sky-sprint')
-  await expect(page.getByTitle('No GitHub profile is available for this player.').filter({ hasText: 'ada' })).toBeVisible()
+  const leaderboard = page.getByRole('list', { name: 'Leaderboard' })
+  await expect(leaderboard.getByTitle('No GitHub profile is available for this player.').filter({ hasText: 'ada' })).toBeVisible()
 
   const database = new Client({ connectionString: process.env.DATABASE_URL })
   await database.connect()
@@ -76,8 +77,8 @@ test('GitHub sign-in, local linking, identity uniqueness, and public link presen
   await database.end()
 
   await page.reload()
-  await expect(page.getByLabel('Leaderboard').getByRole('link', { name: 'ada' })).toHaveAttribute('href', 'https://github.com/ada-github')
-  await expect(page.getByTitle('No GitHub profile is available for this player.').filter({ hasText: 'grace' })).toBeVisible()
+  await expect(leaderboard.getByRole('link', { name: 'ada' })).toHaveAttribute('href', 'https://github.com/ada-github')
+  await expect(leaderboard.getByTitle('No GitHub profile is available for this player.').filter({ hasText: 'grace' })).toBeVisible()
 })
 
 test('GitHub OAuth states are browser-bound, single-use, and reuse an existing identity', async ({ page, browser }) => {

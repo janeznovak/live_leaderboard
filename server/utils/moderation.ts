@@ -1,6 +1,6 @@
 import { database } from './database'
 import { redis } from './redis'
-import { notifyLeaderboardChanged } from './leaderboard-events'
+import { notifyPublicRankingChanged } from './public-ranking-events'
 import { notifyReviewQueueChanged } from './review-queue-events'
 
 type ModerationStatus = 'approved' | 'declined'
@@ -81,10 +81,15 @@ export async function moderateScoreSubmission(submissionId: string, adminId: str
   if (outcome.status === 'approved' && outcome.updatesLeaderboard) {
     try {
       await redis().zadd(`leaderboard:${outcome.gameId}`, 'GT', outcome.score, outcome.userId)
-      notifyLeaderboardChanged(outcome.gameId)
     } catch (error) {
       console.error('Unable to synchronize approved score to Redis', error)
     }
+  }
+  // Reports use all approved submissions in their UTC period, including a
+  // score that is lower than the user's all-time leaderboard best.
+  if (outcome.status === 'approved') {
+    notifyPublicRankingChanged(outcome.gameId, 'report')
+    if (outcome.updatesLeaderboard) notifyPublicRankingChanged(outcome.gameId, 'leaderboard')
   }
   notifyReviewQueueChanged()
   return outcome
