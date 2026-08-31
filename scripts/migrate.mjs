@@ -53,6 +53,26 @@ await client.query(`
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK ((purpose = 'link') = (user_id IS NOT NULL))
   );
+  CREATE TABLE IF NOT EXISTS leaderboard_sync_states (
+    game_id uuid PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+    revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    synced_revision bigint NOT NULL DEFAULT 0 CHECK (synced_revision >= 0),
+    redis_synced_at timestamptz,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (synced_revision <= revision)
+  );
+  CREATE TABLE IF NOT EXISTS leaderboard_sync_jobs (
+    game_id uuid PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+    target_revision bigint NOT NULL CHECK (target_revision > 0),
+    attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    next_attempt_at timestamptz NOT NULL DEFAULT now(),
+    locked_until timestamptz,
+    lock_token uuid,
+    last_error text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CHECK ((locked_until IS NULL) = (lock_token IS NULL))
+  );
 `)
 await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text')
 await client.query('ALTER TABLE score_submissions ALTER COLUMN score TYPE bigint')
@@ -69,4 +89,5 @@ await client.query('CREATE INDEX IF NOT EXISTS score_submissions_game_user_submi
 await client.query("CREATE INDEX IF NOT EXISTS score_submissions_approved_game_submitted_at_index ON score_submissions (game_id, submitted_at, user_id) INCLUDE (score, moderated_at) WHERE status = 'approved'")
 await client.query("CREATE INDEX IF NOT EXISTS score_submissions_pending_review_queue_index ON score_submissions (submitted_at ASC, id ASC) WHERE status = 'pending'")
 await client.query('CREATE INDEX IF NOT EXISTS score_submissions_moderated_by_index ON score_submissions (moderated_by, moderated_at DESC)')
+await client.query('CREATE INDEX IF NOT EXISTS leaderboard_sync_jobs_ready_index ON leaderboard_sync_jobs (next_attempt_at, game_id)')
 await client.end()

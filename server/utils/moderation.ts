@@ -1,5 +1,6 @@
 import { database } from './database'
-import { redis } from './redis'
+import { enqueueLeaderboardSynchronization } from '../../shared/leaderboard-sync-queue.mjs'
+import { wakeLeaderboardSyncWorker } from './leaderboard-sync'
 import { notifyPublicRankingChanged } from './public-ranking-events'
 import { notifyReviewQueueChanged } from './review-queue-events'
 
@@ -58,6 +59,12 @@ export async function moderateScoreSubmission(submissionId: string, adminId: str
       transactionActive = false
       throw createError({ statusCode: 409, statusMessage: 'This score submission has already been reviewed.' })
     }
+    if (status === 'approved' && updatesLeaderboard) {
+      // This durable outbox write is deliberately inside the same transaction as
+      // the approval. A process crash after COMMIT therefore cannot lose the
+      // derived-index work.
+      await enqueueLeaderboardSynchronization(client, submission.game_id)
+    }
     await client.query('COMMIT')
     transactionActive = false
     outcome = {
@@ -76,20 +83,13 @@ export async function moderateScoreSubmission(submissionId: string, adminId: str
     client.release()
   }
 
-  // PostgreSQL has committed the moderation decision. Redis is derived state, so a
-  // cache failure must not turn this successful decision into a failed transition.
   if (outcome.status === 'approved' && outcome.updatesLeaderboard) {
-    try {
-      await redis().zadd(`leaderboard:${outcome.gameId}`, 'GT', outcome.score, outcome.userId)
-    } catch (error) {
-      console.error('Unable to synchronize approved score to Redis', error)
-    }
+    wakeLeaderboardSyncWorker()
   }
   // Reports use all approved submissions in their UTC period, including a
   // score that is lower than the user's all-time leaderboard best.
   if (outcome.status === 'approved') {
     notifyPublicRankingChanged(outcome.gameId, 'report')
-    if (outcome.updatesLeaderboard) notifyPublicRankingChanged(outcome.gameId, 'leaderboard')
   }
   notifyReviewQueueChanged()
   return outcome

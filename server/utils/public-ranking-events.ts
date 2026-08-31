@@ -36,13 +36,12 @@ async function refreshPublicRankingFingerprints(gameId: string, watcher: PublicR
          SELECT user_id, score, moderated_at
          FROM score_submissions
          WHERE game_id = $1 AND status = 'approved'
-       ), best_scores AS (
-         SELECT user_id, max(score) AS best_score
-         FROM approved_scores
-         GROUP BY user_id
        )
        SELECT
-         (SELECT md5(COALESCE(string_agg(user_id::text || ':' || best_score::text, ',' ORDER BY user_id), '')) FROM best_scores) AS leaderboard_fingerprint,
+         -- Redis-backed leaderboards may be stale during an outage. Its event
+         -- must wait for the worker's post-swap PostgreSQL acknowledgement,
+         -- unlike reports which are derived directly from approved history.
+         (SELECT COALESCE(synced_revision::text, '') FROM leaderboard_sync_states WHERE game_id = $1) AS leaderboard_fingerprint,
          (SELECT count(*)::text || ':' || COALESCE(max(moderated_at)::text, '') FROM approved_scores) AS report_fingerprint`,
       [gameId],
     )

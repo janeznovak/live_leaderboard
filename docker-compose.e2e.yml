@@ -17,6 +17,15 @@ services:
       interval: 2s
       timeout: 5s
       retries: 20
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    command: ["-host", "0.0.0.0", "-config", "/config/toxiproxy.json"]
+    volumes: ["./scripts/toxiproxy.json:/config/toxiproxy.json:ro"]
+    healthcheck:
+      test: ["CMD", "/toxiproxy-cli", "list"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
   github:
     image: node:25-bookworm-slim
     working_dir: /app
@@ -34,7 +43,7 @@ services:
       REDIS_URL: redis://redis:6379
       SEED_ADMIN_PASSWORD: e2e-admin-password
       NUXT_DATABASE_URL: postgres://leaderboard:leaderboard@postgres:5432/leaderboard
-      NUXT_REDIS_URL: redis://redis:6379
+      NUXT_REDIS_URL: redis://toxiproxy:6379
       NUXT_GITHUB_CLIENT_ID: e2e-client
       NUXT_GITHUB_CLIENT_SECRET: e2e-secret
       NUXT_GITHUB_OAUTH_BASE_URL: http://github:4000
@@ -55,6 +64,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      toxiproxy: { condition: service_healthy }
       github: { condition: service_healthy }
   e2e:
     image: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -64,6 +74,7 @@ services:
       BASE_URL: http://leaderboard.test:3000
       DATABASE_URL: postgres://leaderboard:leaderboard@postgres:5432/leaderboard
       REDIS_URL: redis://redis:6379
+      TOXIPROXY_URL: http://toxiproxy:8474
       PLAYWRIGHT_WORKERS: 1
     command: sh -c 'npm ci && npx playwright test'
     depends_on:

@@ -4,6 +4,22 @@ import { Client } from 'pg'
 
 const leaderboardEmailPattern = 'leaderboard-%'
 
+async function markFixtureLeaderboardSynchronized(database: Client, gameId: string) {
+  // These fixtures write both the authoritative rows and their exact Redis
+  // representation directly. Advance the same monotonic completion signal that
+  // the durable worker writes, so the shared SSE watcher can observe the
+  // fixture's already-complete cache update without weakening production logic.
+  await database.query(
+    `INSERT INTO leaderboard_sync_states (game_id, revision, synced_revision, redis_synced_at)
+     VALUES ($1, 1, 1, now())
+     ON CONFLICT (game_id) DO UPDATE
+       SET revision = leaderboard_sync_states.revision + 1,
+           synced_revision = leaderboard_sync_states.revision + 1,
+           redis_synced_at = now(), updated_at = now()`,
+    [gameId],
+  )
+}
+
 test.afterEach(async () => {
   if (!process.env.DATABASE_URL || !process.env.REDIS_URL) return
   const database = new Client({ connectionString: process.env.DATABASE_URL })
@@ -53,6 +69,7 @@ async function addApprovedLeaderboardEntries(entries: Array<{ email: string; use
       )
       await cache.zadd(`leaderboard:${gameId}`, entry.score, userId)
     }
+    await markFixtureLeaderboardSynchronized(database, gameId)
   } finally {
     await database.end()
     await cache.quit()
@@ -72,6 +89,7 @@ async function addApprovedLeaderboardEntryForUser(userId: string, score: number)
       [gameId, userId, score],
     )
     await cache.zadd(`leaderboard:${gameId}`, score, userId)
+    await markFixtureLeaderboardSynchronized(database, gameId)
   } finally {
     await database.end()
     await cache.quit()

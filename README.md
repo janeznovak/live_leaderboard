@@ -133,8 +133,22 @@ npm run start        # Start an existing production build
 npm run typecheck    # Run Nuxt/TypeScript checks
 npm run db:migrate   # Apply the PostgreSQL schema
 npm run db:seed      # Seed games, sample scores, and an administrator
+npm run leaderboard:rebuild -- --game sky-sprint # Atomically rebuild one Redis leaderboard from PostgreSQL
 npm run test:e2e     # Run Playwright tests against a configured application
 ```
+
+## Redis leaderboard recovery
+
+If a Redis leaderboard needs an operator-initiated recovery, rebuild exactly one
+known game slug from approved PostgreSQL score history:
+
+```bash
+npm run leaderboard:rebuild -- --game sky-sprint
+```
+
+The command validates the slug, builds a replacement sorted set off to the side,
+and swaps it atomically. It never modifies score history. Concurrent approvals
+leave newer durable synchronization work queued for the background worker.
 
 Run the complete isolated end-to-end environment with:
 

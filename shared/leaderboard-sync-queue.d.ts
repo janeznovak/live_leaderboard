@@ -1,0 +1,1 @@
+export function enqueueLeaderboardSynchronization(database: { query<T extends { revision: string } = { revision: string }>(sql: string, values?: unknown[]): Promise<{ rows: T[] }> }, gameId: string): Promise<string>

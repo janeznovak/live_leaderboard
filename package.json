@@ -9,6 +9,7 @@
     "typecheck": "nuxt typecheck",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "node scripts/seed.mjs",
+    "leaderboard:rebuild": "node scripts/rebuild-leaderboard.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
